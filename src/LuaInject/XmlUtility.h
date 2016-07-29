@@ -26,7 +26,7 @@ along with Decoda.  If not, see <http://www.gnu.org/licenses/>.
 #include <string>
 #include <tinyxml.h>
 
-TiXmlNode* WriteXmlNode(const std::string& tag, const std::string& data, bool cdata = false);
-TiXmlNode* WriteXmlNode(const std::string& tag, int data);
+tinyxml2::XMLNode* WriteXmlNode(tinyxml2::XMLDocument & doc, const std::string& tag, const std::string& data, bool cdata = false);
+tinyxml2::XMLNode* WriteXmlNode(tinyxml2::XMLDocument & doc, const std::string& tag, int data);
 
 #endif

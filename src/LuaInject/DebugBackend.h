@@ -31,14 +31,18 @@ along with Decoda.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include <string>
 #include <list>
-#include <hash_set>
-#include <hash_map>
+#include <unordered_set>
+#include <unordered_map>
 
 //
 // Forward declarations.
 //
 
-class TiXmlNode;
+namespace tinyxml2
+{
+	class XMLDocument;
+	class XMLNode;
+}
 
 /**
  * This class encapsulates the part of the debugger that runs inside the
@@ -148,7 +152,7 @@ public:
     /**
      * Gets the value of a variable. The variable can include member selection.
      */
-    TiXmlNode* GetValue(unsigned long api, lua_State* L, const std::string& variable, unsigned int scriptIndex,
+    tinyxml2::XMLNode* GetValue(tinyxml2::XMLDocument & doc, unsigned long api, lua_State* L, const std::string& variable, unsigned int scriptIndex,
         unsigned int line);
 
     /**
@@ -334,19 +338,19 @@ private:
      * Gets the value at location n on the stack as text. If expandTable is true
      * then tables will be returned in their expanded form (i.e. "{ ... }")
      */
-    TiXmlNode* GetValueAsText(unsigned long api, lua_State* L, int n, int maxDepth = 10, const char* typeNameOverride = NULL, bool displayAsKey = false) const;
+    tinyxml2::XMLNode* GetValueAsText(tinyxml2::XMLDocument & doc, unsigned long api, lua_State* L, int n, int maxDepth = 10, const char* typeNameOverride = NULL, bool displayAsKey = false) const;
 
     /**
      * Gets the value at location n on the stack as text. If expandTable is true
      * then tables will be returned in their expanded form (i.e. "{ ... }")
      */
-    TiXmlNode* GetLuaBindClassValue(unsigned long api, lua_State* L, unsigned int maxDepth, bool displayAsKey = false) const;
+    tinyxml2::XMLNode* GetLuaBindClassValue(tinyxml2::XMLDocument & doc, unsigned long api, lua_State* L, unsigned int maxDepth, bool displayAsKey = false) const;
 
     /**
      * Gets the table value at location n on the stack as text. Nested tables are
      * not expanded.
      */
-    TiXmlNode* GetTableAsText(unsigned long api, lua_State* L, int t, int maxDepth = 10, const char* typeNameOverride = NULL) const;
+    tinyxml2::XMLNode* GetTableAsText(tinyxml2::XMLDocument & doc, unsigned long api, lua_State* L, int t, int maxDepth = 10, const char* typeNameOverride = NULL) const;
 
     /**
      * Returns true if the name belongs to a Lua internal variable that we
@@ -582,8 +586,8 @@ private:
 
 private:
 
-    typedef stdext::hash_map<lua_State*, VirtualMachine*>   StateToVmMap;
-    typedef stdext::hash_map<std::string, unsigned int>     NameToScriptMap;
+    typedef std::unordered_map<lua_State*, VirtualMachine*>   StateToVmMap;
+    typedef std::unordered_map<std::string, unsigned int>     NameToScriptMap;
 
     static DebugBackend*            s_instance;
     static const unsigned int       s_maxStackSize  = 100;
@@ -611,7 +615,7 @@ private:
     StateToVmMap                    m_stateToVm;
     
     mutable CriticalSection         m_exceptionCriticalSection; // Controls access to ignoreExceptions 
-    stdext::hash_set<std::string>   m_ignoreExceptions;
+    std::unordered_set<std::string>   m_ignoreExceptions;
 
     std::vector<Api>                m_apis;
 

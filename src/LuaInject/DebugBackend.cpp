@@ -2020,7 +2020,7 @@ bool DebugBackend::Evaluate(unsigned long api, lua_State* L, const std::string& 
         error = lua_pcall_dll(api, L, 0, LUA_MULTRET, 0);
     }
 
-    TiXmlDocument document;
+    tinyxml2::XMLDocument document;
         
     if (error == 0)
     {
@@ -2029,13 +2029,13 @@ bool DebugBackend::Evaluate(unsigned long api, lua_State* L, const std::string& 
         // expression.
         int nresults = lua_gettop_dll(api, L) - stackTop;
 
-        TiXmlNode* root = NULL;
+        tinyxml2::XMLNode* root = NULL;
 
         // If there are multiple results, create a root "values" node.
 
         if (nresults > 1)
         {
-            root = new TiXmlElement("values");
+			root = document.NewElement("values");
             document.LinkEndChild(root);
         }
         else
@@ -2046,7 +2046,7 @@ bool DebugBackend::Evaluate(unsigned long api, lua_State* L, const std::string& 
         for (int i = 0; i < nresults; ++i)
         {
 
-            TiXmlNode* node = GetValueAsText(api, L, -1 - (nresults - 1 - i));
+            tinyxml2::XMLNode* node = GetValueAsText(document, api, L, -1 - (nresults - 1 - i));
 
             if (node != NULL)
             {
@@ -2083,7 +2083,7 @@ bool DebugBackend::Evaluate(unsigned long api, lua_State* L, const std::string& 
         text = "Error: ";
         text += errorMessage;
 
-        document.LinkEndChild(WriteXmlNode("error", text));
+        document.LinkEndChild(WriteXmlNode(document, "error", text));
 
         lua_pop_dll(api, L, 1);
 
@@ -2101,11 +2101,10 @@ bool DebugBackend::Evaluate(unsigned long api, lua_State* L, const std::string& 
 
     // Convert from XML to a string.
 
-    TiXmlPrinter printer;
-    printer.SetIndent("\t");
+    tinyxml2::XMLPrinter printer;
 
     document.Accept( &printer );
-    result = printer.Str();
+    result = printer.CStr();
 
     // Reenable the debugger hook
     EnableIntercepts(true);
@@ -2203,7 +2202,7 @@ void DebugBackend::MergeTables(unsigned long api, lua_State* L, unsigned int tab
 
 }
 
-TiXmlNode* DebugBackend::GetLuaBindClassValue(unsigned long api, lua_State* L, unsigned int maxDepth, bool displayAsKey) const
+tinyxml2::XMLNode* DebugBackend::GetLuaBindClassValue(tinyxml2::XMLDocument & doc, unsigned long api, lua_State* L, unsigned int maxDepth, bool displayAsKey) const
 {
 
     if (!lua_checkstack_dll(api, L, 3))
@@ -2237,7 +2236,7 @@ TiXmlNode* DebugBackend::GetLuaBindClassValue(unsigned long api, lua_State* L, u
     // so we can directly convert that into the value.
     lua_getfenv_dll(api, L, -1);
 
-    TiXmlNode* node = NULL;
+    tinyxml2::XMLNode* node = NULL;
 
     // If the environment has a metatable, those are the class methods and we
     // need to merge them into the 
@@ -2247,7 +2246,7 @@ TiXmlNode* DebugBackend::GetLuaBindClassValue(unsigned long api, lua_State* L, u
         MergeTables(api, L, -1, -2);
 
         int tableIndex = lua_gettop_dll(api, L);
-        node = GetValueAsText(api, L, tableIndex, maxDepth, className, displayAsKey); 
+        node = GetValueAsText(doc, api, L, tableIndex, maxDepth, className, displayAsKey); 
 
         lua_pop_dll(api, L, 2);
 
@@ -2255,7 +2254,7 @@ TiXmlNode* DebugBackend::GetLuaBindClassValue(unsigned long api, lua_State* L, u
     else
     {
         int tableIndex = lua_gettop_dll(api, L);
-        node = GetValueAsText(api, L, tableIndex, maxDepth, className, displayAsKey); 
+        node = GetValueAsText(doc, api, L, tableIndex, maxDepth, className, displayAsKey); 
     }
 
     // Remove the value from the stack.
@@ -2265,7 +2264,7 @@ TiXmlNode* DebugBackend::GetLuaBindClassValue(unsigned long api, lua_State* L, u
 
 }
 
-TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, int maxDepth, const char* typeNameOverride, bool displayAsKey) const
+tinyxml2::XMLNode* DebugBackend::GetValueAsText(tinyxml2::XMLDocument & doc, unsigned long api, lua_State* L, int n, int maxDepth, const char* typeNameOverride, bool displayAsKey) const
 {
 
     int t1 = lua_gettop_dll(api, L);
@@ -2286,7 +2285,7 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
         typeNameOverride = typeName;
     }
 
-    TiXmlNode* node = NULL;
+    tinyxml2::XMLNode* node = NULL;
 
     if (strcmp(typeName, "table") == 0)
     {
@@ -2311,7 +2310,7 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
                     className = lua_tostring_dll(api, L, -numResults);
                 }
 
-                node = GetValueAsText(api, L, -1, maxDepth, className.c_str(), displayAsKey);
+                node = GetValueAsText(doc, api, L, -1, maxDepth, className.c_str(), displayAsKey);
 
                 // Remove the table value.
                 lua_pop_dll(api, L, numResults);
@@ -2320,7 +2319,7 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
         }
         if( node == NULL)
         {
-        node = GetTableAsText(api, L, -1, maxDepth - 1, typeNameOverride);
+        node = GetTableAsText(doc, api, L, -1, maxDepth - 1, typeNameOverride);
         }
         // Remove the duplicated value.
         lua_pop_dll(api, L, 1);
@@ -2333,9 +2332,9 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
 
         int scriptIndex = GetScriptIndex(GetSource(api, &ar));
 
-        node = new TiXmlElement("function");
-        node->LinkEndChild(WriteXmlNode("script", scriptIndex));
-        node->LinkEndChild(WriteXmlNode("line",   GetLineDefined(api, &ar) - 1));
+        node = doc.NewElement("function");
+        node->LinkEndChild(WriteXmlNode(doc, "script", scriptIndex));
+        node->LinkEndChild(WriteXmlNode(doc, "line",   GetLineDefined(api, &ar) - 1));
     
     }
     else
@@ -2366,9 +2365,9 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
                 text += "\"";
             }
 
-            node = new TiXmlElement("value");
-            node->LinkEndChild( WriteXmlNode("data", text) );
-            node->LinkEndChild( WriteXmlNode("type", typeNameOverride) );
+            node = doc.NewElement("value");
+            node->LinkEndChild( WriteXmlNode(doc, "data", text) );
+            node->LinkEndChild( WriteXmlNode(doc, "type", typeNameOverride) );
 
         }
         else if (strcmp(typeName, "string") == 0)
@@ -2398,9 +2397,9 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
                 text += "\"";
             }
 
-            node = new TiXmlElement("value");
-            node->LinkEndChild( WriteXmlNode("data", text) );
-            node->LinkEndChild( WriteXmlNode("type", typeNameOverride) );
+            node = doc.NewElement("value");
+            node->LinkEndChild( WriteXmlNode(doc, "data", text) );
+            node->LinkEndChild( WriteXmlNode(doc, "type", typeNameOverride) );
 
         }
         else if (strcmp(typeName, "userdata") == 0)
@@ -2454,7 +2453,7 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
                             className = lua_tostring_dll(api, L, -numResults);
                         }
 
-                        node = GetValueAsText(api, L, tableIndex, maxDepth, className.c_str(), displayAsKey); 
+                        node = GetValueAsText(doc, api, L, tableIndex, maxDepth, className.c_str(), displayAsKey); 
 
                         // Remove the table value.
                         lua_pop_dll(api, L, numResults);
@@ -2470,9 +2469,9 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
                         
                         if (string != NULL)
                         {
-                            node = new TiXmlElement("value");
-                            node->LinkEndChild( WriteXmlNode("data", string) );
-                            node->LinkEndChild( WriteXmlNode("type", className) );
+                            node = doc.NewElement("value");
+                            node->LinkEndChild( WriteXmlNode(doc, "data", string) );
+                            node->LinkEndChild( WriteXmlNode(doc, "type", className) );
                         }
 
                         // Remove the string value.
@@ -2494,7 +2493,7 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
                         error = "Error executing __tostring";
                     }
 
-                    node = WriteXmlNode("error", error);
+                    node = WriteXmlNode(doc, "error", error);
                 
                     // Remove the error message.
                     lua_pop_dll(api, L, 1);
@@ -2526,9 +2525,9 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
                     sprintf(buffer, "0x%p", p);
                 }
 
-                node = new TiXmlElement("value");
-                node->LinkEndChild( WriteXmlNode("data", buffer) );
-                node->LinkEndChild( WriteXmlNode("type", className) );
+                node = doc.NewElement("value");
+                node->LinkEndChild( WriteXmlNode(doc, "data", buffer) );
+                node->LinkEndChild( WriteXmlNode(doc, "type", className) );
 
             }
 
@@ -2570,15 +2569,15 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
                 result = string;
             }
 
-            node = new TiXmlElement("value");
+            node = doc.NewElement("value");
 
             if (displayAsKey)
             {
                 result = "[" + result + "]"; 
             }
 
-            node->LinkEndChild( WriteXmlNode("data", result) );
-            node->LinkEndChild( WriteXmlNode("type", typeNameOverride) );
+            node->LinkEndChild( WriteXmlNode(doc, "data", result) );
+            node->LinkEndChild( WriteXmlNode(doc, "type", typeNameOverride) );
 
         }
 
@@ -2594,7 +2593,7 @@ TiXmlNode* DebugBackend::GetValueAsText(unsigned long api, lua_State* L, int n, 
 
 }
 
-TiXmlNode* DebugBackend::GetTableAsText(unsigned long api, lua_State* L, int t, int maxDepth, const char* typeNameOverride) const
+tinyxml2::XMLNode* DebugBackend::GetTableAsText(tinyxml2::XMLDocument & doc, unsigned long api, lua_State* L, int t, int maxDepth, const char* typeNameOverride) const
 {
 
     if (!lua_checkstack_dll(api, L, 2))
@@ -2608,11 +2607,11 @@ TiXmlNode* DebugBackend::GetTableAsText(unsigned long api, lua_State* L, int t, 
     // later once we've put additional stuff on the stack.
     t = lua_absindex_dll(api, L, t);
 
-    TiXmlNode* node = new TiXmlElement("table");
+    tinyxml2::XMLNode* node = doc.NewElement("table");
 
     if (typeNameOverride)
     {
-        node->LinkEndChild( WriteXmlNode("type", typeNameOverride) );
+        node->LinkEndChild( WriteXmlNode(doc, "type", typeNameOverride) );
     }
 
     if (maxDepth > 0)
@@ -2624,13 +2623,13 @@ TiXmlNode* DebugBackend::GetTableAsText(unsigned long api, lua_State* L, int t, 
         while (lua_next_dll(api, L, t) != 0)
         {
 
-            TiXmlNode* key = new TiXmlElement("key");
-            key->LinkEndChild( GetValueAsText(api, L, -2, maxDepth - 1, NULL, true) );
+            tinyxml2::XMLNode* key = doc.NewElement("key");
+            key->LinkEndChild( GetValueAsText(doc, api, L, -2, maxDepth - 1, NULL, true) );
 
-            TiXmlNode* value = new TiXmlElement("data");
-            value->LinkEndChild( GetValueAsText(api, L, -1, maxDepth - 1) );
+            tinyxml2::XMLNode* value = doc.NewElement("data");
+            value->LinkEndChild( GetValueAsText(doc, api, L, -1, maxDepth - 1) );
 
-            TiXmlNode* element = new TiXmlElement("element");
+            tinyxml2::XMLNode* element = doc.NewElement("element");
 
             element->LinkEndChild(key);
             element->LinkEndChild(value);

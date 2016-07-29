@@ -22,22 +22,22 @@ along with Decoda.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "XmlUtility.h"
 
-TiXmlNode* WriteXmlNode(const std::string& tag, const std::string& data, bool cdata)
+tinyxml2::XMLNode* WriteXmlNode(tinyxml2::XMLDocument & doc, const std::string& tag, const std::string& data, bool cdata)
 {
 
-    TiXmlNode* node = new TiXmlElement(tag);
-    TiXmlText* text = new TiXmlText(data);
-    text->SetCDATA(cdata);
-
+    tinyxml2::XMLText* text = doc.NewText(data.c_str());
+    text->SetCData(cdata);
+  
+	tinyxml2::XMLNode* node = doc.NewElement(tag.c_str());
     node->LinkEndChild(text);
 
     return node;
 
 }
 
-TiXmlNode* WriteXmlNode(const std::string& tag, int data)
+tinyxml2::XMLNode* WriteXmlNode(tinyxml2::XMLDocument & doc, const std::string& tag, int data)
 {
     char temp[32];
     sprintf(temp, "%d", data);
-    return WriteXmlNode(tag, temp);
+    return WriteXmlNode(doc, tag, temp);
 }
