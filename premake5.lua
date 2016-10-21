@@ -18,7 +18,7 @@ project "Frontend"
 	flags { "WinMain" }
 	location "build"
 	language "C++"
-	characterset "Default"
+	characterset "MBCS"
 	files {
 		"src/Frontend/*.h",
 		"src/Frontend/*.cpp",
@@ -87,7 +87,7 @@ project "LuaInject"
 	kind "SharedLib"
 	location "build"
 	language "C++"
-	characterset "Default"
+	characterset "MBCS"
 	defines { "TIXML_USE_STL" }
 	files {
 		"src/LuaInject/*.h",
@@ -124,7 +124,7 @@ project "Shared"
 	kind "StaticLib"
 	location "build"
 	language "C++"
-	characterset "Default"
+	characterset "MBCS"
 	files {
 		"src/Shared/*.h",
 		"src/Shared/*.cpp",
